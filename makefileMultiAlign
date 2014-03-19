@@ -1,0 +1,32 @@
+CM_OBJS = align.o
+OBJS1 = main.o malign.o
+OBJS2 = maint.o malign_tree.o
+EXE1 = MultipleAlign
+EXE2 = MultipleAlignT
+
+CC = g++
+CCOPTS = -g -Wall
+LINK = g++
+#LINKOPTS = -o $(EXENAME)
+
+all:$(EXE1) $(EXE2)
+
+$(EXE1):   $(OBJS1) $(CM_OBJS)
+	$(LINK) $^ -o $@
+
+$(EXE2):   $(OBJS2) $(CM_OBJS)
+	$(LINK) $^ -o $@
+
+malign_tree.o:malign_tree.cpp malign_tree.h align.h
+	$(CC) -c $(CCOPTS) $<
+maint.o:maint.cpp align.h malign_tree.h
+	$(CC) -c $(CCOPTS) $<
+main.o:main.cpp align.h malign.h
+	$(CC) -c $(CCOPTS) main.cpp
+malign.o:malign.cpp malign.h align.h
+	$(CC) -c $(CCOPTS) malign.cpp
+align.o:align.cpp align.h
+	$(CC) -c $(CCOPTS) align.cpp
+
+clean:
+	-rm *.o $(EXENAME)

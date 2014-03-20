@@ -6,9 +6,8 @@
 #include<vector>
 #include<iostream>
 #include<math.h>
-#include<map>
+#include<bitset>
 
-using std::map;
 using std::vector;
 using std::string;
 using std::cout;
@@ -23,14 +22,14 @@ struct MtxE{
 
 class Alignment{
 	private:
-		static const int MaxSeq = 4; //for safety reason we now align at most 4 sequences
+		static const int MaxSeq = 9; //for safety reason we now align at most 4 sequences
 		//store of the two original sequences
 		//also we make sure the first seq is always the shortest one
 		vector< vector<string> > inseqs;
 		//store of the aligned sequences
 		vector< vector<string> > otseqs;
 		vector<string> names;
-		 
+		float FinalScore; 
 		//penalty scores for gap,mismatch and similar
 		float Gap;
 		float Mismatch;
@@ -40,7 +39,9 @@ class Alignment{
 		bool FloatEqual(float A, float B);
 		int cor_to_ind(int*);//translate cors to index in Mtx
 		void reset_cor(int*);//reset cors array to 0
-		void RecCal(int lev,int* Cors,MtxE* mtx,vector<int> nzero,int limit);
+		float pos_score(MtxE*,int*,bool*);
+		void RecCal(int lev,int* Cors,MtxE* mtx,vector<int> nzero);
+		void TraceAln(MtxE*);
 		void outputScoreMtxHelper(int,int*,MtxE*);
 		void outputScoreMtx(MtxE* mtx);
 	public:

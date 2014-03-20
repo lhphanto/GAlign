@@ -182,9 +182,12 @@ void MalignmentT::cal_dismtx(void){
 	
 	for(int i=0; i < this->Num_Seq ;i++){
 		for(int j=i; j < this->Num_Seq;j++){
-			Alignment Temp(this->seq_data[i],"a",this->seq_data[j],"b");
+			//Alignment Temp(this->seq_data[i],"a",this->seq_data[j],"b");
+			Alignment Temp;
+			Temp.AddSeq(this->seq_data[i],"a");
+			Temp.AddSeq(this->seq_data[j],"b");
 			//cout<<this->ind2name[i]<<"=>"<<this->seq_data[i].size()<<endl;
-			score=Temp.align();
+			score=Temp.Align();
 			//cout<<"Score is "<<score<<endl;	
 			this->dis_mtx[i*this->Num_Seq+j]=score;
 			this->dis_mtx[j*this->Num_Seq+i]=score;

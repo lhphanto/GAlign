@@ -49,7 +49,8 @@ int main(int argc, char* argv[]){
 
 	Alignment X;
 	X.AddSeqs(data_mtx);
-	X.Align();	
+	X.Align();
+	X.PrintAlignment();	
 	/*
 	MalignmentT X(data_mtx);
 	float myscore=X.align();

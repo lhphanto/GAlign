@@ -20,22 +20,29 @@ Alignment::~Alignment(){
 }
 
 bool Alignment::AddSeq(vector<string> const & input){
+	if((int)this->inseqs.size() == this->MaxSeq){
+		cerr<<"MaxSeq limit reached , can't add any more seq"<<endl;
+		return 0;
+	}
 	if(input.size() < 2){
 		cerr<<"Seq to add too short, it needs to contain at least a name and a single string "<<endl;
 		return 0;
 	}
+	
+
 	vector<string> newseq = input;
 	this->names.push_back(newseq.front());
 	newseq.erase(newseq.begin());
-	if(this->inseqs.size() == 0 || newseq.size() >= this->inseqs[0].size()  )
-		this->inseqs.push_back(newseq);
-	else
-		this->inseqs.insert(this->inseqs.begin(),newseq);
+	this->inseqs.push_back(newseq);
 	
 	return 1;
 }
 
 bool Alignment::AddSeq(vector<string> const & input,string const & iname){
+	if((int)this->inseqs.size() == this->MaxSeq){
+		cerr<<"MaxSeq limit reached , can't add any more seq"<<endl;
+		return 0;
+	}
 	if(input.size() < 1){
 		cerr<<"Seq to add too short, it needs to contain at least a single string "<<endl;
 		return 0;
@@ -44,12 +51,10 @@ bool Alignment::AddSeq(vector<string> const & input,string const & iname){
 		cerr<<"Input seq's name is an empty string"<<endl;
 		return 0;
 	}
+	
 	vector<string> newseq = input;
 	this->names.push_back(iname);
-	if(this->inseqs.size() == 0 || newseq.size() >= this->inseqs[0].size()  )
-		this->inseqs.push_back(newseq);
-	else
-		this->inseqs.insert(this->inseqs.begin(),newseq);
+	this->inseqs.push_back(newseq);
 	
 	return 1;
 }
@@ -133,13 +138,13 @@ int Alignment::cor_to_ind(int* val){
 }
 
 void Alignment::reset_cor(int* val){
-	for(int i=0;i < this->MaxSeq;i++){
+	for(int i=0;i < (int)this->inseqs.size();i++){
 		val[i]=0;
 	}	
 }
 		
 float Alignment::Align(void){
-	float  temp,min;
+	
 	if((int)this->inseqs.size() < 2){
 		cerr<<"There is only 1 seq instored,can't do alignment"<<endl;
 		return 10;
@@ -149,79 +154,211 @@ float Alignment::Align(void){
 		TotalSize = TotalSize*((int)this->inseqs[i].size()+1);
 
 	MtxE * ScoreMtx = new MtxE[TotalSize];
-	int Coors[this->MaxSeq];
+	int* Coors = new int[(int)this->inseqs.size()];
 	reset_cor(Coors);
 	
+	ScoreMtx[0].val=0;
+	ScoreMtx[0].prev=-2;
 	for(unsigned int i=0; i < this->inseqs.size();i++){
-		for(int j=0; j <= (int)this->inseqs[i].size();j++){
+		for(int j=1; j <= (int)this->inseqs[i].size();j++){
 			if(i > 0) Coors[i-1]=0;
 			Coors[i]=j;
 			ScoreMtx[cor_to_ind(Coors)].val=(float)(j*this->Gap);
-			ScoreMtx[cor_to_ind(Coors)].prev = -2;	
+			ScoreMtx[cor_to_ind(Coors)].prev = 1<<((int)this->inseqs.size()-i-1);//its previous should be(0,0,...,j-1,0,0)	
 		}
 	}	
-	outputScoreMtx(ScoreMtx);	
+	//outputScoreMtx(ScoreMtx);	
 	//cout<< "finish initialization"<<endl;
 	reset_cor(Coors);
 	vector<int> nzero;	
-	RecCal(0,Coors,ScoreMtx,nzero,2);	
+	RecCal(0,Coors,ScoreMtx,nzero);	
 	//cout<<"finish calculation"<<endl;
-		
+	//outputScoreMtx(ScoreMtx);
+	TraceAln(ScoreMtx);	
 	//cout<<"Length is "<<seq1.size()
-	float n_score = 0.1;//ScoreMtx[TotalSize-1].val/(float)this->otseqs[0].size();
+	this->FinalScore= ScoreMtx[TotalSize-1].val/(float)this->otseqs[0].size();
 	delete[] ScoreMtx;
-	ScoreMtx = NULL;
-	return n_score;
+	delete[] Coors;
+	return this->FinalScore;
 }
 
+//trace back and form the actual alignment
+void Alignment::TraceAln(MtxE* mtx){
+	for(unsigned int i=0; i< this->inseqs.size();i++){
+		vector<string> temp;
+		this->otseqs.push_back(temp);
+	}
+	int* Cors= new int[(int)this->inseqs.size()];
+	for(unsigned int i=0; i < this->inseqs.size();i++)
+		Cors[(int)i]=(int)this->inseqs[i].size();
 
-void Alignment::RecCal(int lev,int* Cors,MtxE* mtx,vector<int> nzero,int limit){
-	if(lev < (int)this->inseqs.size() && (int)nzero.size() <= limit){
-		Cors[lev]=0;
-		RecCal(lev+1,Cors,mtx,nzero,limit);
-		if((int)nzero.size() < limit){
-			nzero.push_back(lev);
-			for(int i=1; i < (int)this->inseqs[lev].size();i++){
-				Cors[lev]=i;
-				RecCal(lev+1,Cors,mtx,nzero,limit);
+	
+	int index_Cors = cor_to_ind(Cors);
+	int shift;
+	while(mtx[index_Cors].prev > 0){
+		for(unsigned int i=0; i < this->inseqs.size();i++){
+			shift = (int)this->inseqs.size()-i-1;
+			if((mtx[index_Cors].prev & (1<<shift)) == 0 )
+				this->otseqs[i].insert(this->otseqs[i].begin(),"-");
+			else{
+				this->otseqs[i].insert(this->otseqs[i].begin(),this->inseqs[i][Cors[i]-1]);
+				Cors[i]--;
+				
 			}
 		}
+		index_Cors = cor_to_ind(Cors);	
+	}	
+	delete[] Cors;		
+	return;
+}
+
+void Alignment::RecCal(int lev,int* Cors,MtxE* mtx,vector<int> nzero){
+	if(lev < (int)this->inseqs.size()){
+		Cors[lev]=0;
+		RecCal(lev+1,Cors,mtx,nzero);
+		nzero.push_back(lev);
+		for(int i=1; i <= (int)this->inseqs[lev].size();i++){
+			Cors[lev]=i;
+			RecCal(lev+1,Cors,mtx,nzero);
+		}
+
 	}else{
 		if((int)nzero.size() < 2) return;//base cases are already taken care
-		int NCors[this->MaxSeq];
-		float min_score;
-		reset_cor(NCors);
-		for(int i=0; i < )
-		//CalScore(NCors,Cors,)
-		
+		int* NCors = new int[(int)this->inseqs.size()];
+		//use a int to encode all possible neighbors
+		int allnbr= 1<<(int)(this->inseqs.size());
+		int shift;//use to store the number of shift needed for bitwise ops
+		int mask;//mask used to check the validity of neighbor positions
+		bool first=1;//1 if the score of current position has not set yet.
+		//to record the alignment type at Cors position for each seq,
+		//1 means it is a gap, 0 otherwise
+		int index_Cors=cor_to_ind(Cors);
+		int index_NCors;
+		bool* alntyp = new bool[(int)this->inseqs.size()];
+		for(int cur=1; cur < allnbr;cur++){
+			for(int j=0; j < (int)this->inseqs.size();j++)
+				NCors[j] = Cors[j];
+			mask = 0;
+			for(unsigned int j=0;j < nzero.size();j++){
+				shift = (int)this->inseqs.size()-nzero[j]-1;
+				mask+=(1<<shift);
+			}
+
+			/**FOR DEBUG see the bit string of the number*/
+			//std::bitset<3> temp2(mask);
+			//cout<<"M:"<<temp2<<endl;
+			//std::bitset<3> temp1(cur);
+			//cout<<"N:"<<temp1<<endl;
+
+			//some neighbor positions may not exist
+			//for some element, skip cur neighbor if not exit.
+			if( (cur|mask) != mask) continue;
+
+			for(int j=0; j < (int)this->inseqs.size();j++){
+				shift = (int)this->inseqs.size()-j-1;
+				if((cur & (1<<shift)) > 0){
+					 NCors[j]--;
+					alntyp[j]=0;
+				}else{
+					alntyp[j]=1;
+				}
+			}
+			/****For Debug**********
+			cout<<"---"<<endl;	
+			for(int j=0; j < (int)this->inseqs.size();j++)
+				cout<<Cors[j]<<' ';
+			cout<<endl;
+			for(int j=0; j < (int)this->inseqs.size();j++)
+				cout<<NCors[j]<<' ';
+			cout<<endl;
+			for(int j=0; j < (int)this->inseqs.size();j++)
+				cout<<alntyp[j]<<' ';
+			cout<<endl;
+			***********************/
+
+			index_NCors = cor_to_ind(NCors);
+			
+			if(mtx[index_NCors].prev == -1)
+				cout<<"Error!!!this NCors is not computed yet!!"<<endl;
+	
+			float cur_score = mtx[index_NCors].val+pos_score(mtx,Cors,alntyp);
+			//cout<<cur_score<<endl;	
+			if(first == 1){
+				mtx[index_Cors].val = cur_score;
+				mtx[index_Cors].prev = cur;
+				first = 0;
+			}else if(mtx[index_Cors].val > cur_score){
+				mtx[index_Cors].val = cur_score;
+				mtx[index_Cors].prev = cur;
+			}	
+
+		}
+		delete[] NCors;
+		delete[] alntyp;
 	}
 	return;
 }
+//1 means it is a gap, 0 otherwise
+//assume the length of Cors, Type must be of length this->inseqs.size()
+float Alignment::pos_score(MtxE* mtx,int* Cors,bool* Type){
+	float score_sum=0;
+	for(unsigned int i=0; i < this->inseqs.size();i++){
+		if(Type[i] == 1){
+			score_sum += this->Gap*((int)this->inseqs.size()-i-1);
+			 continue;
+		}
+		for(unsigned int j=i+1;j < this->inseqs.size();j++){
+			if(Type[j] == 1)
+				score_sum += this->Gap;
+			else{		
+				float Percentage=Similarity(this->inseqs[i][Cors[i]-1],this->inseqs[j][Cors[j]-1]);
+				if(FloatEqual(Percentage,1.0) == true ){
+					score_sum+=this->Match;
+				}else if(FloatEqual(Percentage,0.9) == true){
+					score_sum+=this->Identical;
+				}else if(Percentage >= 0.66 ){
+					score_sum+=this->Similar;
+				}else{
+					score_sum+=this->Mismatch;
+				}
+			}
+		}
+	}
+	return (2.0*score_sum)/(((int)this->inseqs.size())*((int)this->inseqs.size()-1));
+}
 	
-void Alignment::outputScoreMtx(MtxE* mtx){	
-	int Coors[this->MaxSeq]={0};
+void Alignment::outputScoreMtx(MtxE* mtx){
+	int* Coors= new int[(int)this->inseqs.size()];
+	reset_cor(Coors);
 	cout<<"\t0";
 	for(unsigned int i=0; i < this->inseqs.back().size();i++)
 		cout<<"\t"<<this->inseqs.back()[i];
 	cout<<endl;
-	outputScoreMtxHelper(0,Coors,mtx);	
+	outputScoreMtxHelper(0,Coors,mtx);
+	delete[] Coors;			
 	return;
 }
 
 void Alignment::outputScoreMtxHelper(int lev,int* Cors,MtxE* mtx){
 	if(lev < (int)this->inseqs.size()-1){
-		for(int i=0; i < (int)this->inseqs[lev].size();i++){
+		for(int i=0; i <= (int)this->inseqs[lev].size();i++){
 			Cors[lev]=i;
 			outputScoreMtxHelper(lev+1,Cors,mtx);
 		}
 	}else{
-		cout<<Cors[0];
+		if(Cors[0] == 0)
+			cout<<"0";
+		else
+			cout<<this->inseqs[0][Cors[0]-1];
 		for(int i=1; i < (int)this->inseqs.size()-1;i++)
-			cout<<","<<Cors[i];
+			if(Cors[i] == 0)
+				cout<<"0";
+			else
+				cout<<","<<this->inseqs[i][Cors[i]-1];
 
-		for(int i=0; i < (int)this->inseqs[lev].size();i++){
+		for(int i=0; i <= (int)this->inseqs[lev].size();i++){
 			Cors[lev]=i;
-			cout<<"\t"<<mtx[cor_to_ind(Cors)].val;
+			cout<<"\t"<<mtx[cor_to_ind(Cors)].val<<"/"<<mtx[cor_to_ind(Cors)].prev;
 		}
 		cout<<endl;
 	}
@@ -229,16 +366,13 @@ void Alignment::outputScoreMtxHelper(int lev,int* Cors,MtxE* mtx){
 }
 	
 void Alignment::PrintAlignment(){
-//	cout<<name1;
-//	for(unsigned int j=0; j <seq1a.size();j++){
-//		cout<<"\t"<<seq1a[j];
-//	}
-//	cout<<endl;
-//	cout<<name2;
-//	for(unsigned int j=0; j <seq2a.size();j++){
-//		cout<<"\t"<<seq2a[j];
-//	}
-//	cout<<endl;
+	cout<<this->FinalScore<<endl;
+	for(unsigned int i=0; i < this->otseqs.size();i++){
+		cout<<this->names[i];
+		for(unsigned int j=0; j < this->otseqs[i].size();j++)
+			cout<<"\t"<<this->otseqs[i][j];
+		cout<<endl;
+	}
 	return;
 }
 void Alignment::PrintAlignment(vector<string> & store, int index){

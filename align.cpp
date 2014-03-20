@@ -6,6 +6,7 @@ Alignment::Alignment(){
 	Identical=-1.0;
 	Similar= -0.5;
 	Match= -2.0;
+	this->MyProSize=1;
 }
 
 Alignment::Alignment(float c,float d,float e,float f,float g){
@@ -14,13 +15,14 @@ Alignment::Alignment(float c,float d,float e,float f,float g){
 	Identical=e;
 	Similar=f;
 	Match=g;
+	this->MyProSize=1;
 }
 
 Alignment::~Alignment(){
 }
 
 bool Alignment::AddSeq(vector<string> const & input){
-	if((int)this->inseqs.size() == this->MaxSeq){
+	if((this->MyProSize*((int)input.size()-1)) >= this->MaxProSize){
 		cerr<<"MaxSeq limit reached , can't add any more seq"<<endl;
 		return 0;
 	}
@@ -34,15 +36,16 @@ bool Alignment::AddSeq(vector<string> const & input){
 	this->names.push_back(newseq.front());
 	newseq.erase(newseq.begin());
 	this->inseqs.push_back(newseq);
-	
+	this->MyProSize = this->MyProSize*((int)newseq.size());	
 	return 1;
 }
 
 bool Alignment::AddSeq(vector<string> const & input,string const & iname){
-	if((int)this->inseqs.size() == this->MaxSeq){
+	if((this->MyProSize*((int)input.size())) >= this->MaxProSize){
 		cerr<<"MaxSeq limit reached , can't add any more seq"<<endl;
 		return 0;
 	}
+	
 	if(input.size() < 1){
 		cerr<<"Seq to add too short, it needs to contain at least a single string "<<endl;
 		return 0;
@@ -55,7 +58,7 @@ bool Alignment::AddSeq(vector<string> const & input,string const & iname){
 	vector<string> newseq = input;
 	this->names.push_back(iname);
 	this->inseqs.push_back(newseq);
-	
+	this->MyProSize = this->MyProSize*((int)newseq.size());	
 	return 1;
 }
 

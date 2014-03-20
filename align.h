@@ -22,7 +22,8 @@ struct MtxE{
 
 class Alignment{
 	private:
-		static const int MaxSeq = 9; //for safety reason we now align at most 4 sequences
+		static const int MaxProSize = 100000; //the maximum problem size to allow
+		int MyProSize;
 		//store of the two original sequences
 		//also we make sure the first seq is always the shortest one
 		vector< vector<string> > inseqs;

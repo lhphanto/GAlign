@@ -1,57 +1,78 @@
 #include "align.h"
 
-Alignment::Alignment(vector<string>& a,vector<string>& b){
-	name1=a[0];
-	name2=b[0];
-	for(unsigned int i=1;i < a.size();i++){
-		seq1.push_back(a[i]);
-	}
-	for(unsigned int i=1;i < b.size();i++){
-		seq2.push_back(b[i]);
-	}
-	gap=1.0;
-	mismatch=1.0;
-	identical=-1.0;
-	similar= -0.5;
-	match= -2.0;
+Alignment::Alignment(){	
+	Gap=1.0;
+	Mismatch=1.0;
+	Identical=-1.0;
+	Similar= -0.5;
+	Match= -2.0;
 }
 
-Alignment::Alignment(vector<string>& a,string namea,vector<string>& b,string nameb){
-	name1=namea;
-	name2=nameb;
-	for(unsigned int i=0;i < a.size();i++){
-		seq1.push_back(a[i]);
-	}
-	for(unsigned int i=0;i < b.size();i++){
-		seq2.push_back(b[i]);
-	}
-	//cout<<"Created a alignment of size "<<seq1.size()<<" AND "<<seq2.size()<<endl;
-	gap=1.0;
-	mismatch=1.0;
-	identical=-1.0;
-	similar= -0.5;
-	match= -2.0;
-}
-	
-
-Alignment::Alignment(vector<string>& a,vector<string>& b, float c,float d,float e,float f,float g){
-	name1=a[0];
-	name2=b[0];
-	for(unsigned int i=1;i < a.size();i++){
-		seq1.push_back(a[i]);
-	}
-	for(unsigned int i=1;i < b.size();i++){
-		seq2.push_back(b[i]);
-	}
-	gap=c;
-	mismatch=d;
-	identical=e;
-	similar=f;
-	match=g;
+Alignment::Alignment(float c,float d,float e,float f,float g){
+	Gap=c;
+	Mismatch=d;
+	Identical=e;
+	Similar=f;
+	Match=g;
 }
 
 Alignment::~Alignment(){
 }
+
+bool Alignment::AddSeq(vector<string> const & input){
+	if(input.size() < 2){
+		cerr<<"Seq to add too short, it needs to contain at least a name and a single string "<<endl;
+		return 0;
+	}
+	vector<string> newseq = input;
+	this->names.push_back(newseq.front());
+	newseq.erase(newseq.begin());
+	if(this->inseqs.size() == 0 || newseq.size() >= this->inseqs[0].size()  )
+		this->inseqs.push_back(newseq);
+	else
+		this->inseqs.insert(this->inseqs.begin(),newseq);
+	
+	return 1;
+}
+
+bool Alignment::AddSeq(vector<string> const & input,string const & iname){
+	if(input.size() < 1){
+		cerr<<"Seq to add too short, it needs to contain at least a single string "<<endl;
+		return 0;
+	}
+	if(iname.size() == 0){
+		cerr<<"Input seq's name is an empty string"<<endl;
+		return 0;
+	}
+	vector<string> newseq = input;
+	this->names.push_back(iname);
+	if(this->inseqs.size() == 0 || newseq.size() >= this->inseqs[0].size()  )
+		this->inseqs.push_back(newseq);
+	else
+		this->inseqs.insert(this->inseqs.begin(),newseq);
+	
+	return 1;
+}
+
+bool Alignment::AddSeqs(vector< vector<string> > const & input){
+	for(unsigned int i=0; i < input.size();i++)
+		if(AddSeq(input[i]) == 0)
+			return 0;
+	return 1;
+}
+
+bool Alignment::AddSeqs(vector< vector<string> > const & input,vector<string> const & names){
+	if(input.size() != names.size()){
+		cerr<<"number of input seqs are not the same as the number of seq names"<<endl;
+		return 0;
+	}
+	for(unsigned int i=0; i < input.size();i++)
+		if(AddSeq(input[i],names[i]) == 0)
+			return 0;
+	return 1;
+}
+
+
 
 //Helper function to compare two float numbers to 0.01 precision
 bool Alignment::FloatEqual(float A, float B){
@@ -98,156 +119,140 @@ float Alignment::Similarity(string a,string b){
 	return ((float)((int)sim))/(float)a.size();
 }
 
-
-float Alignment::align(void){
-	float  temp,min;
-	int ydim=seq1.size()+1;
-	int xdim=seq2.size()+1;
-	float* score = new float[xdim*ydim];
-	for(int i=0; i < ydim;i++){
-		score[i*xdim]=(float)i*gap;
-	}
-	for(int i=0; i <xdim;i++){
-		score[i]=(float)i*gap;
-	}
-	
-	//cout<< "finish initialization"<<endl;
-	
-	for(int j=1; j <xdim;j++){
-		for(int i=1; i <ydim;i++){
-			min=score[(i-1)*xdim+j]+gap;
+int Alignment::cor_to_ind(int* val){
+	int index=0;
+	int dim_size = 1;
+	int len = (int)this->inseqs.size();
 		
-			//seq1a[m]=seq1[m];
-			//seq2a[n]="-";
-			float Percentage=Similarity(seq1[i-1],seq2[j-1]);
-			
-			if(FloatEqual(Percentage,1.0) == true ){
-				temp=score[(i-1)*xdim+j-1]+match;
-			}else if(FloatEqual(Percentage,0.9) == true){
-				temp=score[(i-1)*xdim+j-1]+identical;
-				//cout<<"Identical "<<temp<<endl;
-			}else if(Percentage >= 0.66 ){
-				temp=score[(i-1)*xdim+j-1]+similar;
-				//cout<<"Similar "<<temp<<endl;
-			}else{
-				temp=score[(i-1)*xdim+j-1]+mismatch;
-				//cout<<"Mismatch "<<temp<<endl;
-			}
-			if(temp < min){
-				min=temp;
-			}
-			temp=score[i*xdim+j-1]+gap;
-			if(temp < min){
-				min=temp;
-			}
-			//cout<<seq1[i-1]<<","<<seq2[j-1]<<":"<<Percentage<<",Score:"<<min<<endl;
-			score[i*xdim+j]=min;
-		}
+	for(int i=len-1;i >=0;i--){
+		if(val[i] != 0)
+			index += val[i]*dim_size;
+		dim_size = dim_size*((int)this->inseqs[i].size()+1);
 	}
-	//cout<<"finish calculation"<<endl;
+	return index;
+}
+
+void Alignment::reset_cor(int* val){
+	for(int i=0;i < this->MaxSeq;i++){
+		val[i]=0;
+	}	
+}
+		
+float Alignment::Align(void){
+	float  temp,min;
+	if((int)this->inseqs.size() < 2){
+		cerr<<"There is only 1 seq instored,can't do alignment"<<endl;
+		return 10;
+	}
+	int TotalSize=1;
+	for(unsigned int i=0;i < this->inseqs.size();i++)
+		TotalSize = TotalSize*((int)this->inseqs[i].size()+1);
+
+	MtxE * ScoreMtx = new MtxE[TotalSize];
+	int Coors[this->MaxSeq];
+	reset_cor(Coors);
 	
-	/**************  Output score matrix*************
-	for(int i=ydim-1; i >=0;i--){
-		if( i >= 1){
-			cout<<seq1[i-1];
-		}else{
-			cout<<"-";
+	for(unsigned int i=0; i < this->inseqs.size();i++){
+		for(int j=0; j <= (int)this->inseqs[i].size();j++){
+			if(i > 0) Coors[i-1]=0;
+			Coors[i]=j;
+			ScoreMtx[cor_to_ind(Coors)].val=(float)(j*this->Gap);
+			ScoreMtx[cor_to_ind(Coors)].prev = -2;	
 		}
-		for(int j=0; j <xdim;j++){
-			cout<<"\t"<<score[i*xdim+j];
-		}
-		cout<<endl;
-	}
-	cout<<"\t"<<"-";
-	for(unsigned int j=0; j < seq2.size();j++){
-		cout<<"\t"<<seq2[j];
-	}
-	cout<<endl;
-	cout<<"Final Score :"<<score[xdim*ydim-1]<<endl;
-	*************************************************/
-	int xInd=xdim-1;
-	int yInd=ydim-1;
-	while(xInd >=1 || yInd >=1 ){
-		//cout <<"Checking "<<xInd<<","<<yInd<<endl;
-		if(xInd-1 >=0 && score[yInd*xdim+xInd] == score[yInd*xdim+xInd-1]+gap){
-			seq1a.insert(seq1a.begin(),"-");
-			seq2a.insert(seq2a.begin(),seq2[xInd-1]);
-			xInd=xInd-1;
-			continue;
-		}
-		if(yInd-1 >=0 && score[yInd*xdim+xInd] == score[(yInd-1)*xdim+xInd]+gap){
-			seq1a.insert(seq1a.begin(),seq1[yInd-1]);
-			seq2a.insert(seq2a.begin(),"-");
-			yInd=yInd-1;
-			continue;
-		}
-		if(score[yInd*xdim+xInd] == score[(yInd-1)*xdim+xInd-1]+mismatch || score[yInd*xdim+xInd] == score[(yInd-1)*xdim+xInd-1]+identical || score[yInd*xdim+xInd] == score[(yInd-1)*xdim+xInd-1]+similar || score[yInd*xdim+xInd] == score[(yInd-1)*xdim+xInd-1]+match){
-			seq1a.insert(seq1a.begin(),seq1[yInd-1]);
-			seq2a.insert(seq2a.begin(),seq2[xInd-1]);
-			xInd=xInd-1;
-			yInd=yInd-1;
-		}
-	}
+	}	
+	outputScoreMtx(ScoreMtx);	
+	//cout<< "finish initialization"<<endl;
+	reset_cor(Coors);
+	vector<int> nzero;	
+	RecCal(0,Coors,ScoreMtx,nzero,2);	
+	//cout<<"finish calculation"<<endl;
+		
 	//cout<<"Length is "<<seq1.size()
-	float n_score = score[xdim*ydim-1]/(float)seq1a.size();
-	delete[] score;
-	score = NULL;
+	float n_score = 0.1;//ScoreMtx[TotalSize-1].val/(float)this->otseqs[0].size();
+	delete[] ScoreMtx;
+	ScoreMtx = NULL;
 	return n_score;
 }
 
-void	 Alignment::outputalign(){
-	cout<<name1;
-	for(unsigned int j=0; j <seq1a.size();j++){
-		cout<<"\t"<<seq1a[j];
+
+void Alignment::RecCal(int lev,int* Cors,MtxE* mtx,vector<int> nzero,int limit){
+	if(lev < (int)this->inseqs.size() && (int)nzero.size() <= limit){
+		Cors[lev]=0;
+		RecCal(lev+1,Cors,mtx,nzero,limit);
+		if((int)nzero.size() < limit){
+			nzero.push_back(lev);
+			for(int i=1; i < (int)this->inseqs[lev].size();i++){
+				Cors[lev]=i;
+				RecCal(lev+1,Cors,mtx,nzero,limit);
+			}
+		}
+	}else{
+		if((int)nzero.size() < 2) return;//base cases are already taken care
+		int NCors[this->MaxSeq];
+		float min_score;
+		reset_cor(NCors);
+		for(int i=0; i < )
+		//CalScore(NCors,Cors,)
+		
 	}
-	cout<<endl;
-	cout<<name2;
-	for(unsigned int j=0; j <seq2a.size();j++){
-		cout<<"\t"<<seq2a[j];
-	}
-	cout<<endl;
 	return;
 }
-void Alignment::outputalign(vector<string> & store, int index){
-	if(index == 1){
-		for(unsigned int j=0; j <seq1a.size();j++){
-			store.push_back(seq1a[j]);
+	
+void Alignment::outputScoreMtx(MtxE* mtx){	
+	int Coors[this->MaxSeq]={0};
+	cout<<"\t0";
+	for(unsigned int i=0; i < this->inseqs.back().size();i++)
+		cout<<"\t"<<this->inseqs.back()[i];
+	cout<<endl;
+	outputScoreMtxHelper(0,Coors,mtx);	
+	return;
+}
+
+void Alignment::outputScoreMtxHelper(int lev,int* Cors,MtxE* mtx){
+	if(lev < (int)this->inseqs.size()-1){
+		for(int i=0; i < (int)this->inseqs[lev].size();i++){
+			Cors[lev]=i;
+			outputScoreMtxHelper(lev+1,Cors,mtx);
 		}
-	}else if(index == 2){
-		for(unsigned int j=0; j <seq2a.size();j++){
-			store.push_back(seq2a[j]);
+	}else{
+		cout<<Cors[0];
+		for(int i=1; i < (int)this->inseqs.size()-1;i++)
+			cout<<","<<Cors[i];
+
+		for(int i=0; i < (int)this->inseqs[lev].size();i++){
+			Cors[lev]=i;
+			cout<<"\t"<<mtx[cor_to_ind(Cors)].val;
 		}
+		cout<<endl;
 	}
+	return;
+}
+	
+void Alignment::PrintAlignment(){
+//	cout<<name1;
+//	for(unsigned int j=0; j <seq1a.size();j++){
+//		cout<<"\t"<<seq1a[j];
+//	}
+//	cout<<endl;
+//	cout<<name2;
+//	for(unsigned int j=0; j <seq2a.size();j++){
+//		cout<<"\t"<<seq2a[j];
+//	}
+//	cout<<endl;
+	return;
+}
+void Alignment::PrintAlignment(vector<string> & store, int index){
+//	if(index == 1){
+//		for(unsigned int j=0; j <seq1a.size();j++){
+//			store.push_back(seq1a[j]);
+//		}
+//	}else if(index == 2){
+//		for(unsigned int j=0; j <seq2a.size();j++){
+//			store.push_back(seq2a[j]);
+//		}
+//	}
 	return;
 }
 		
 	
-//~ float Alignment::subalign(int m,int n){
-	//~ float min,temp;
-	//~ if(m==0 || n==0){
-		//~ return score[m*seq2.size()+n];
-	//~ }
-	//~ min=subalign(m-1,n)+gap;
-		
-			//~ //seq1a[m]=seq1[m];
-			//~ //seq2a[n]="-";
-	//~ if(seq1[m].compare(seq2[n]) == 0){
-		//~ temp=subalign(m-1,n-1);
-	//~ }else{
-		//~ temp=subalign(m-1,n-1)+mismatch;
-	//~ }
-			
-	//~ if(temp < min){
-		//~ min=temp;
-	//~ }
-	//~ temp=subalign(m,n-1)+gap;
-	//~ if(temp < min){
-		//~ min=temp;
-	//~ }
-			
-			
-	//~ //cout<<m<<";"<<n<<endl;
-	//~ //cout<<gap<<";"<<mismatch<<endl;
-	//~ return min;
-//~ }
-//		void Alignment::outputalign();
+

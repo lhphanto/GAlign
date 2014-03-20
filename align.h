@@ -9,44 +9,62 @@
 #include<map>
 
 using std::map;
+using std::vector;
+using std::string;
+using std::cout;
+using std::cerr;
+using std::endl;
 
-using namespace std;
-
+struct MtxE{
+	MtxE():val(-1),prev(-1){}
+	float val;
+	int prev;
+};
 
 class Alignment{
 	private:
-		static const MaxSeq = 4; //for safety reason we now align at most 4 sequences
+		static const int MaxSeq = 4; //for safety reason we now align at most 4 sequences
 		//store of the two original sequences
-		vector<string> seq1;
-		vector<string> seq2;
+		//also we make sure the first seq is always the shortest one
+		vector< vector<string> > inseqs;
 		//store of the aligned sequences
-		vector<string> seq1a;
-		vector<string> seq2a;
-		string name1;
-		string name2;
+		vector< vector<string> > otseqs;
+		vector<string> names;
+		 
 		//penalty scores for gap,mismatch and similar
-		float gap;
-		float mismatch;
-		float similar;
-		float identical;
-		float match;
+		float Gap;
+		float Mismatch;
+		float Similar;
+		float Identical;
+		float Match;
 		bool FloatEqual(float A, float B);
+		int cor_to_ind(int*);//translate cors to index in Mtx
+		void reset_cor(int*);//reset cors array to 0
+		void RecCal(int lev,int* Cors,MtxE* mtx,vector<int> nzero,int limit);
+		void outputScoreMtxHelper(int,int*,MtxE*);
+		void outputScoreMtx(MtxE* mtx);
 	public:
-		Alignment(vector<string>& a,vector<string>& b);
-		Alignment(vector<string>& a,string namea,vector<string>& b,string nameb);
-		Alignment(vector<string>& a,vector<string>& b, float,float,float,float,float);
+		Alignment();
+		//initialize the alignment by specify your own scores
+		Alignment(float,float,float,float,float);
 
-		~Alignment();		
+		~Alignment();
+		bool AddSeq(vector<string> const &);	
+		bool AddSeq(vector<string> const &,string const &);	
+		bool AddSeqs(vector< vector<string> > const &);	
+		bool AddSeqs(vector< vector<string> > const &,vector<string> const &);	
+
+
 		//Main function to do the alignment
 		//Store result in seq1a,seq2a
 		//Return the normalized score of the alignment
-		float align();
+		float Align();
 
 		//print out the two aligned sequences
-		void outputalign();
+		void PrintAlignment();
 
 		//store the seq1a into 'store' if index == 1, store the seq2a if index == 2  
-		void outputalign(vector<string> & store, int index);
+		void PrintAlignment(vector<string> & store, int index);
 
 		//Input two strings
 		//Output fraction of the characters that are the same
